@@ -1,0 +1,14 @@
+Executable : /home/giovanny/Android/Sdk/ndk-bundle/ndk-build
+arguments : 
+NDK_PROJECT_PATH=null
+APP_BUILD_SCRIPT=/home/giovanny/AndroidStudioProjects/Tomafoto/app/src/main/jniLibs/jni/Android.mk
+NDK_APPLICATION_MK=/home/giovanny/AndroidStudioProjects/Tomafoto/app/src/main/jniLibs/jni/Application.mk
+APP_ABI=arm64-v8a
+NDK_ALL_ABIS=arm64-v8a
+NDEBUG=1
+APP_PLATFORM=android-23
+NDK_OUT=/home/giovanny/AndroidStudioProjects/Tomafoto/app/build/intermediates/ndkBuild/debug/obj
+NDK_LIBS_OUT=/home/giovanny/AndroidStudioProjects/Tomafoto/app/build/intermediates/ndkBuild/debug/lib
+-n
+jvmArgs : 
+
