@@ -1,9 +1,12 @@
 package com.example.giovanny.tomafoto;
 
+import android.Manifest;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Environment;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -14,6 +17,7 @@ import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfRect;
 
+import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
@@ -29,12 +33,18 @@ import android.view.MenuItem;
 import android.view.WindowManager;
 import android.widget.Toast;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.Socket;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 
 
@@ -43,8 +53,8 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
 
 
     //private CameraBridgeViewBase mOpenCvCameraView;
+
     private Tutorial3View mOpenCvCameraView;
-    int foto;
     boolean foto2;
 
     private static final Scalar FACE_RECT_COLOR     = new Scalar(0, 255, 0, 255);
@@ -75,7 +85,9 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
     public int mwidth;
     public int mheight;
 
-
+    ArrayList<Esquina> esquinas;
+    ArrayList<Esquina> Efaces;
+    int delay=20;
 
     private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
         @Override
@@ -133,7 +145,7 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
         mDetectorName = new String[2];
         mDetectorName[JAVA_DETECTOR] = "Java";
         mDetectorName[NATIVE_DETECTOR] = "Native (tracking)";
-        foto=10;
+        esquinas=new ArrayList<>();
         foto2=false;
         Log.i(TAG, "Instantiated new " + this.getClass());
     }
@@ -156,6 +168,26 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
         //mheight=displayMetrics.heightPixels;
 
         Log.d("corta","w:"+mwidth+"__"+mheight);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            requestPermissions(new String[]{Manifest.permission.CAMERA,Manifest.permission.ACCESS_COARSE_LOCATION,Manifest.permission.WRITE_EXTERNAL_STORAGE,Manifest.permission.READ_EXTERNAL_STORAGE}, code_request);
+        }
+    }
+
+    private final int code_request=1234;
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        switch (requestCode) {
+            case code_request:
+                if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    // Permission Granted
+
+                } else {
+                    // Permission Denied
+                }
+                break;
+            default:
+                super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        }
     }
 
     @Override
@@ -228,12 +260,6 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
         mRgba.release();
     }
 
-    public synchronized int getfoto(){
-        return foto;
-    }
-    public synchronized void restfoto(){
-     foto--;
-    }
 
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
@@ -266,34 +292,52 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
 
         Rect[] facesArray = faces.toArray();
         String posiciones="";
-/*
-        Point p1= new Point();
-        Point p2= new Point();
-        mwidth =mOpenCvCameraView.getWidth();
-        mheight=mOpenCvCameraView.getHeight();
 
-        p1.set(new double[]{0,0});
-        p2.set(new double[]{1280,720});
-        Imgproc.rectangle(mRgba, p1, p2, FACE_RECT_COLOR2, 2);
-*/
+        Efaces = new ArrayList<>();
         for (int i = 0; i < facesArray.length; i++) {
             Imgproc.rectangle(mRgba, facesArray[i].tl(), facesArray[i].br(), FACE_RECT_COLOR, 2);
             posiciones+=facesArray[i].tl()+"_"+facesArray[i].br()+"__";
+            Efaces.add(new Esquina(new Point(facesArray[i].x,facesArray[i].y),
+                    facesArray[i].width, facesArray[i].height,1));
+
         }
+        int nveces=0;
 
-        if(facesArray.length>0 && foto>0){
+        for (int i = 0; i < esquinas.size(); i++) {
+            int j;
+            for(j=0;j<Efaces.size();j++){
+                if(Efaces.get(j).distancia( esquinas.get(j).p1 )<5){
+                    esquinas.get(j).setP1(Efaces.get(j).p1,Efaces.get(j).w,Efaces.get(j).h);
+                    if(nveces<esquinas.get(j).getNveces())
+                        nveces=esquinas.get(j).getNveces();
+                    Efaces.remove(j);
+                    j--;
+                    break;
+                }
+            }
+            if(j==Efaces.size()){
+                esquinas.remove(i);
+                i--;
+            }
+        }
+        if(facesArray.length>0 && delay>0){
+            delay--;
+        }
+        if(facesArray.length>0 && delay==0){
+            Log.d("corta","pos: "+posiciones);
+            String npath="";
 
-            Log.d("corta","w:"+mwidth+"__"+mheight);
-            String npath = TomaFoto();
+            npath= TomaFoto();
+
             Log.d("corta","Cuadrados_"+posiciones);
             for (int i = 0; i < facesArray.length; i++) {
-                new HiloGuardaCortaManda(i, npath, facesArray[i].x, facesArray[i].y,
-                        facesArray[i].width, facesArray[i].height).execute();
-                restfoto();
-            }
+                    new HiloGuardaCortaManda(i, npath, facesArray[i].x, facesArray[i].y,
+                            facesArray[i].width, facesArray[i].height).execute();
 
-            foto2=true;
-            Log.d("corta","_"+foto);
+                foto2=true;
+            }
+            delay=4;
+
         }
 
         return mRgba;
@@ -327,38 +371,35 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
     }
 
     public void CortaryGuardar(int i,String path, int xi, int yi, int wi, int hi){
+        File imgFile = new File(path);
+        while (!imgFile.exists()) {
+            imgFile = new File(path);
+        }
+        Bitmap bitmap = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
 
-                File imgFile = new File(path);
-                while (!imgFile.exists()) {
-                    imgFile = new File(path);
-                }
-                Bitmap bitmap = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
+        int altura = bitmap.getHeight();
+        int ancho = bitmap.getWidth();
+        int cons=1;
+        float proporW=cons*ancho / mwidth;
+        float proporH=cons*altura / mheight;
+        int x = (int) (xi * proporW);
+        int y = (int) (yi * proporH);
 
-                int altura = bitmap.getHeight();
-                int ancho = bitmap.getWidth();
-
-                float proporW=ancho / mwidth;
-                float proporH=altura / mheight;
-                int x = (int) (xi * proporW);
-                int y = (int) (yi * proporH);
-
-                int w = (int) (wi * proporW);
-                int h = (int) (hi * proporH);
-                Bitmap cortado = Bitmap.createBitmap(bitmap, x, y, w, h);
-                FileOutputStream fos = null;
-                try {
-
-                    String []partes = path.split(".jp");
-                    String fileName = partes[0] +i+ ".jpg";
-                    fos = new FileOutputStream(fileName);
-
-                    cortado.compress(Bitmap.CompressFormat.PNG, 100, fos);
-                    fos.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-
-
+        int w = (int) (wi * proporW);
+        int h = (int) (hi * proporH);
+        Bitmap cortado = Bitmap.createBitmap(bitmap, x, y, w, h);
+        FileOutputStream fos;
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
+        String currentDateandTime = sdf.format(new Date());
+        String fileName = Environment.getExternalStorageDirectory().getPath() +
+        "/Cortado/"+i+ currentDateandTime+".png";
+        try {
+            fos = new FileOutputStream(fileName);
+            cortado.compress(Bitmap.CompressFormat.PNG, 100, fos);
+            fos.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public class HiloGuardaCortaManda extends AsyncTask<String, Void, Void> {
@@ -378,12 +419,16 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
         @Override
         protected Void doInBackground(String... args) {
             try {
-                Thread.sleep(1000);
+                Thread.sleep(1250);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
             CortaryGuardar(i,path,xi,yi,wi,hi);
-
+            try {
+                Thread.sleep(1200);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
             return null;
         }
 

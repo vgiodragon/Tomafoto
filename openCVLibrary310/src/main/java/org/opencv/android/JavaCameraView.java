@@ -166,6 +166,7 @@ public class JavaCameraView extends CameraBridgeViewBase implements PreviewCallb
                     }
 
 
+
                     mCamera.setParameters(params);
                     params = mCamera.getParameters();
 
