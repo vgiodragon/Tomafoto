@@ -46,6 +46,7 @@ import java.net.Socket;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.logging.Logger;
 
 
 public class MainActivity extends AppCompatActivity implements CvCameraViewListener2 {
@@ -63,10 +64,10 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
     public static final int        JAVA_DETECTOR       = 0;
     public static final int        NATIVE_DETECTOR     = 1;
 
-    private MenuItem               mItemFace50;
-    private MenuItem               mItemFace40;
     private MenuItem               mItemFace30;
     private MenuItem               mItemFace20;
+    private MenuItem               mItemFace15;
+    private MenuItem               mItemFace10;
     private MenuItem               mItemType;
 
     private Mat                    mRgba;
@@ -78,7 +79,7 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
     private int                    mDetectorType       = JAVA_DETECTOR;
     private String[]               mDetectorName;
 
-    private float                  mRelativeFaceSize   = 0.2f;
+    private float                  mRelativeFaceSize   = 0.15f;
     private int                    mAbsoluteFaceSize   = 0;
 
 
@@ -214,10 +215,10 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         Log.i(TAG, "called onCreateOptionsMenu");
-        mItemFace50 = menu.add("Face size 50%");
-        mItemFace40 = menu.add("Face size 40%");
         mItemFace30 = menu.add("Face size 30%");
         mItemFace20 = menu.add("Face size 20%");
+        mItemFace15 = menu.add("Face size 15%");
+        mItemFace10 = menu.add("Face size 10%");
         mItemType   = menu.add(mDetectorName[mDetectorType]);
         return true;
     }
@@ -225,14 +226,15 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         Log.i(TAG, "called onOptionsItemSelected; selected item: " + item);
-        if (item == mItemFace50)
-            setMinFaceSize(0.5f);
-        else if (item == mItemFace40)
-            setMinFaceSize(0.4f);
-        else if (item == mItemFace30)
+
+        if (item == mItemFace30)
             setMinFaceSize(0.3f);
         else if (item == mItemFace20)
             setMinFaceSize(0.2f);
+        else if (item == mItemFace15)
+            setMinFaceSize(0.15f);
+        else if (item == mItemFace10)
+            setMinFaceSize(0.1f);
         else if (item == mItemType) {
 
             int tmpDetectorType = (mDetectorType + 1) % mDetectorName.length;
@@ -253,6 +255,10 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
         mRgba = new Mat();
         mwidth=width;
         mheight=height;
+        int tmpDetectorType = (mDetectorType + 1) % mDetectorName.length;
+        //item.setTitle(mDetectorName[tmpDetectorType]);
+        Toast.makeText(this,"JAVA_"+mItemType+"_l_"+tmpDetectorType,Toast.LENGTH_SHORT).show();
+        setDetectorType(tmpDetectorType);
     }
 
     public void onCameraViewStopped() {
@@ -289,6 +295,7 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
         else {
             Log.e(TAG, "Detection method is not selected!");
         }
+        Imgproc.rectangle(mRgba, new Point(0f,0f), new Point(100f,100f), FACE_RECT_COLOR2, 2);
 
         Rect[] facesArray = faces.toArray();
         String posiciones="";
@@ -336,7 +343,7 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
 
                 foto2=true;
             }
-            delay=4;
+            delay=20;
 
         }
 
@@ -370,7 +377,7 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
         return fileName;
     }
 
-    public void CortaryGuardar(int i,String path, int xi, int yi, int wi, int hi){
+    public String CortaryGuardar(int i,String path, int xi, int yi, int wi, int hi){
         File imgFile = new File(path);
         while (!imgFile.exists()) {
             imgFile = new File(path);
@@ -378,7 +385,7 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
         Bitmap bitmap = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
 
         int altura = bitmap.getHeight();
-        int ancho = bitmap.getWidth();
+        int ancho =  bitmap.getWidth();
         int cons=1;
         float proporW=cons*ancho / mwidth;
         float proporH=cons*altura / mheight;
@@ -392,17 +399,20 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
         String currentDateandTime = sdf.format(new Date());
         String fileName = Environment.getExternalStorageDirectory().getPath() +
-        "/Cortado/"+i+ currentDateandTime+".png";
+        "/Cortado/"+i+ currentDateandTime+".jpg";
         try {
             fos = new FileOutputStream(fileName);
-            cortado.compress(Bitmap.CompressFormat.PNG, 100, fos);
+            cortado.compress(Bitmap.CompressFormat.JPEG, 100, fos);
             fos.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
+        return fileName;
+
+
     }
 
-    public class HiloGuardaCortaManda extends AsyncTask<String, Void, Void> {
+    public class HiloGuardaCortaManda extends AsyncTask<String, Void, String> {
         int xi,yi,wi,hi;
         String path;
         int i;
@@ -417,21 +427,56 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
         }
 
         @Override
-        protected Void doInBackground(String... args) {
+        protected String doInBackground(String... args) {
+
             try {
                 Thread.sleep(1250);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            CortaryGuardar(i,path,xi,yi,wi,hi);
+            //String file =CortaryGuardar(i,path,xi+25,yi+10,wi+45,hi+55);  //S4
+            String file =CortaryGuardar(i,path,xi+10,yi+10,wi+45,hi+55);  //MOTO G
             try {
-                Thread.sleep(1200);
+                Thread.sleep(1250);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            return null;
+            MandaSocket(file);
+            return file;
+
         }
 
+        @Override
+        protected void onPostExecute(String file) {
+
+        }
+    }
+
+
+    public void MandaSocket(String path){
+
+        try {
+            Log.d("manda","inicio");
+            Socket sc=new Socket("172.16.100.86",8000);
+            Log.d("manda","conectado!!!");
+            DataOutputStream out=new DataOutputStream(sc.getOutputStream());
+            
+            byte[] buffer = new byte[8192];	
+            File file = new File(path);
+            DataInputStream din = new DataInputStream(new FileInputStream(file));
+            int count;
+            while ((count = din.read(buffer)) > 0)
+            {
+              out.write(buffer, 0, count);
+              out.flush();
+            }
+            din.close();
+            out.close();
+            sc.close();
+            Log.d("manda","MANDO!!");
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
     }
 
 }
