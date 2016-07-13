@@ -170,7 +170,10 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
 
         Log.d("corta","w:"+mwidth+"__"+mheight);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            requestPermissions(new String[]{Manifest.permission.CAMERA,Manifest.permission.ACCESS_COARSE_LOCATION,Manifest.permission.WRITE_EXTERNAL_STORAGE,Manifest.permission.READ_EXTERNAL_STORAGE}, code_request);
+            requestPermissions(new String[]{Manifest.permission.CAMERA,Manifest.permission.ACCESS_COARSE_LOCATION,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE,Manifest.permission.READ_EXTERNAL_STORAGE
+                    ,Manifest.permission.INTERNET
+            }, code_request);
         }
     }
 
@@ -335,7 +338,11 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
             String npath="";
 
             npath= TomaFoto();
-
+            try {
+                Thread.sleep(1300);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
             Log.d("corta","Cuadrados_"+posiciones);
             for (int i = 0; i < facesArray.length; i++) {
                     new HiloGuardaCortaManda(i, npath, facesArray[i].x, facesArray[i].y,
@@ -395,6 +402,12 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
         int w = (int) (wi * proporW);
         int h = (int) (hi * proporH);
         Bitmap cortado = Bitmap.createBitmap(bitmap, x, y, w, h);
+        //ahora para scalar por si es muy pequeño
+        if(w>300){
+            Log.d("comprime","comprime!!");
+            cortado= Bitmap.createScaledBitmap(cortado,300,300*h/w,false);
+        }
+
         FileOutputStream fos;
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss");
         String currentDateandTime = sdf.format(new Date());
@@ -428,14 +441,8 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
 
         @Override
         protected String doInBackground(String... args) {
-
-            try {
-                Thread.sleep(1250);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
             //String file =CortaryGuardar(i,path,xi+25,yi+10,wi+45,hi+55);  //S4
-            String file =CortaryGuardar(i,path,xi+10,yi+10,wi+45,hi+55);  //MOTO G
+            String file =CortaryGuardar(i,path,xi+10,yi+10,wi+55,hi+60);  //MOTO G
             try {
                 Thread.sleep(1250);
             } catch (InterruptedException e) {
@@ -473,6 +480,7 @@ public class MainActivity extends AppCompatActivity implements CvCameraViewListe
             din.close();
             out.close();
             sc.close();
+            //file.delete();
             Log.d("manda","MANDO!!");
         } catch (Exception ex) {
             ex.printStackTrace();
